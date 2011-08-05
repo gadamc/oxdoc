@@ -1,0 +1,199 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}   % LaTeX, comprends les accents !
+\usepackage[T1]{fontenc}      % Police contenant les caractÃ¨res franÃ§ais
+\usepackage[top=2.5cm, bottom=2.5cm, left=1.8cm, right=1.8cm]{geometry}         % DÃ©finir les marges
+\usepackage[english]{babel}  % Placez ici une liste de langues, la
+                              % derniÃ¨re Ã©tant la langue principale
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{wasysym}
+
+
+
+                        
+
+
+\begin{document}
+\begin{titlepage}
+\hfill
+\begin{center}
+\Huge
+\textbf{Documentation to use OxRop to analyse muon-veto events}   
+\end{center}       
+
+\vfill
+
+\Large{August 2011}
+
+\vfill
+
+
+
+\end{titlepage}
+
+
+\newpage
+
+
+\section{Introduction}
+
+~
+
+OxRop is a data analysis package developed by the CRESST collaboration. Currently, it is also able to read EDELWEISS data and this documentation is mainly focused on the treatment of muon-veto data with OxRop. Knowing that OxRop will probably be the software which will be used in the EURECA experiment, developing its ability to analyse EDELWEISS data is very important. The user must be familiar with ROOT (visit the ROOT website and especially the user's guide) to understand this documentation. 
+
+First, one should obviously install OxRop on his machine. The latest version oxrop$\_$5.5 is on CCALI and a README file explains you how to install the software.
+
+~
+~
+
+To clarify the ideas : 
+\begin{itemize}
+\item In the source code, a module is often called a panel
+
+\item impact zone means where the hit on the muon veto module occurs
+
+\item data such as TDC0, TDC1 or ADC values are raw data from Kdata files.
+
+\item $ \Delta TDC = TDC1 - TDC0 $
+
+\item TDC and ADC Calibration can be found in Holger Nierder's Diploma Thesis
+
+\item The latest version of TCVetoGeometry, TCEdwMuonVetoImpactZone, TCEdwVeto are respectively located in /kalinka/home/coiffard/oxropOnly/classes/Basics for the first two one and /kalinka/home/oxropOnly/classes/containers for the last one. 
+
+\item The text file .edwVeto is located in /kalinka/home/coiffard
+\end{itemize}
+
+
+\section{Main classes}
+
+~
+
+The main classes that could be interesting for the user are located in this directory 
+
+
+\begin{figure} [H]
+\begin{center}
+\includegraphics[width=9cm, height=0.4cm]{classe.PNG}
+\end{center}
+\end{figure}
+
+
+Especially TCEdwVeto, TCVetoGeometry and  TCEdwMuonVetoImpactZone. The first one read the TDC and ADC values and procedes to the calibration. TCVetoGeometry builds the EDELWEISS muon veto geometry and is in charge of the display event by event. And the third one set up the impact zone according to TDC and ADC values. 
+
+
+\subsection{TCEdwVeto}
+
+~
+
+In this class, there are two important methods. The former reads calibration values for TDC and ADC from a text file. Note that this text file should be located in your home directory and named .edwVeto to be correctely read. The later is \emph{Process}. This one reads the raw data TDC and ADC and does the conversion according to the calibration values from the text file. These calibrations will be useful in the TCEdwMuonVetoImpactZone class to set up the impact zones at the right place. 
+
+
+\subsection{TCVetoGeometry}
+
+~
+
+First of all, this class builds the EDELWEISS muon veto geometry, each module is drawn according to the coordinates that can be found in this file 
+
+
+\begin{figure} [H]
+\begin{center}
+\includegraphics[width=13cm, height=0.4cm]{chariot.png}
+\end{center}
+\end{figure}
+
+
+The cryostat is also drawn and finally the future impact zones are prepared. It means that an impact zone is allocated for each modules, these impact zones are first invisible and their dimensions and positions will be set up later (with TCEdwMuonVetoImpactZone). Note that all these boxes are TGeoVolume, a ROOT class which is often used here.
+ 
+The TCVetoGeometry class also gives the instruction for the display event by event. Actually the method ShowEvent places the impact zones at the right place according to the $ \Delta TDC $ value (which can be converted into meter) and sets the size proportionnally to the energy deposit with $ ADC0 + ADC1 $ by calling the TCEdwMuonVetoImpactZone class. It also toggles the impact zone visible or hidden, draws the trajectories and calculates the distance from the trajectory to the cryostat. 
+
+At this point, it is important to explain the three different cases that depend of the $ \Delta TDC $ value for each impact. 
+  
+\begin{itemize}
+\item If $ \Delta TDC $ is less than the maximum allowed by the calibration, there is no problem to place the impact zone along the module
+
+\item If $ \Delta TDC $ is higher than the maximum allowed, the impact zone is drawn adjacent to the hit module
+
+\item If $ TDC0=TDC1=-1 $, in that case the impact zone is not drawn
+\end{itemize}
+
+These cases are treated in TCEdwMuonVetoImpactZone, except for the last one.
+
+
+\subsection{TCEdwMuonVetoImpactZone}
+
+~
+
+
+As you can see, the function SetImpactZoneDimensions from the class TCEdwMuonVetoImpactZone is called in \emph{ShowEvent} in TCVetoGeometry. 
+
+This function returns a boolean, actually if you look at the script of this method you can see that there is a discrimination between impact with a value of $ \Delta TDC $ lower than the calibration bound and higher than this calibration bound. As explained previously, the impact zone can be drawn normally or adjacent to the hit module.
+
+ If it is adjacent (it means that $ \Delta TDC $ is higher than the maximum allowed) the boolean variable \emph{retval} is set to \emph{kFALSE} if there is no problem \emph{retval} is set to \emph{kTRUE} and finally this method returns \emph{retval}.
+ 
+Then in TCVetoGeometry, a new boolean variable is created \emph{drawIt} which is actually equal to \emph{retval} because the creation of this new variable calls the SetImpactZoneDimensions method.
+
+\begin{figure} [H]
+\begin{center}
+\includegraphics[width=15cm, height=0.7cm]{bool.PNG}
+\end{center}
+\end{figure}
+
+
+In this class ox, oy, oz correspond to the coordinates of the origin of the impact zone in the case of an adjacent draw (if $\Delta TDC >$ bound value). The origin is translated from a distance equal to the half-length of the module plus the half-length of the impact zone. Note that the ratio $\frac{\Delta TDC}{|\Delta TDC|}$ is only here to know if the impact zone is moved on the “0” side or on the “1” side.
+
+Still in this class X2, Y2, Z2 are the coordinates of the origin for an impact which respects the $ \Delta TDC $ criterion. The size of the impact zone is set up proportionnaly to the energy deposit with $ 10Mev \leftrightarrow 1cm $, as the scale is in meter there is a division by 20 (10 to convert in meter and 2 for the half-length).
+
+~
+
+~
+
+
+Back to TCVetoGeometry, another boolean variable \emph{goodTDC} checks if \emph{TDC0} and \emph{TDC1} are different of -1. 
+
+~
+
+The trajectory is plotted from the first module to be hit to the others. To determine the first module to be hit, we only look for the smallest \emph{TDC0+TDC1} value.  Note that these values are stored into an array only if the two conditions \emph{drawIt} and \emph{goodTdc} are met, to avoid to plot trajectories with impact zones that do not respect the $ \Delta TDC $ criterion or with $ TDC0=TDC1=-1 $. Then it is easy to find the index of the smallest \emph{TDC0+TDC1} and as the coordinates are stored in a array too, we know the coordinates of the beginning of the trajectory and those of every other points. 
+
+The last step of this method is the calculation of the distance from the trajectory to the bolometer and the display into a PaveText. Here, a simple solid geometry formula is used. The result (which is a double) is then converted into a char because here, we are trying to display this distance in a pavetext in the window and the addtext method only takes char in parameter. 
+
+~
+
+
+\section{Run OxRop}
+,
+~
+
+In the terminal, first type \emph{make} when you are in  $ \sim $/oxropOnly and then if you wish (for instance) use the Run68 file type 
+
+\begin{figure} [H]
+\begin{center}
+\includegraphics[width=10cm, height=0.4cm]{kdatafile.PNG}
+\end{center}
+\end{figure}
+
+It opens a window and you just have to click on \emph{Display} and to select your event list. Then use the arrow to go through the events. This method is not very effective because you see all the events and a lot of them only have one hit module which is not really interesting to see a trajectory. Hopefully, OxRop enables to display only some interesting events with a cut. For instance if you want to see only the event with 2 or 3 hit modules, you have to create a new 1-D histogram with the number of modules in x-axis and then on the main windows select the tab \emph{Cut}, choose New 1-D and you can now choose the event you want to display with vertical bar on the previous diagram. Finally, click on \emph{View Evt} and it displays only the events with the number of hit module that you have selected. 
+
+OxRop offers many other possibilities and a user who knows ROOT will learn to use this software faster.
+
+~
+
+
+\section{Improvement}
+
+~
+
+We can suggest some ideas to improve this code. First, if you take a look at TCEdwMuonVetoImpactZone class you can see a sign change for module 44 and 48, this is due to an error in this file $ttree\_chariot\_3.2\_RC.cxx$, this is not a major problem but maybe it is possible to fix it. 
+
+Then, for modules 7 and 8, the TDC calibration has been guesseds, these modules are $ 2.10 m $ length and a real calibration for these modules is necessary. Note that modules 50 and 51 are not really part of the muon veto but constitute the neutrons counter, they are here in the code such as module but they should be remove of this code in the future. 
+
+Finally, in TCEdwMuonVeto class, the size is set proportionnaly to the energy deposit but there are no calibration for module 7,8,15 and 16. If you look at the text file .edwVeto you will see that the value for these modules is 500 in ADC channel, it is an arbitrary value which needs to be changed once the calibration is done. 
+
+Many attempts have been tried to make the impact zone solide but without success. It seems that one should use the method \emph{Raytrace} from TGeoVolume. The most successful attempt made the impact zones solid but only during the construction step by step of the geometry, then the impact zones disappear. 
+
+
+
+\end{document}
